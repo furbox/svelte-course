@@ -6,18 +6,36 @@
   import FaRegTrashAlt from "svelte-icons/fa/FaRegTrashAlt.svelte";
   import { flip } from "svelte/animate";
   import { identity } from "svelte/internal";
-  import { scale } from "svelte/transition";
+  import { scale, crossfade } from "svelte/transition";
 
   afterUpdate(() => {
-    if (autoScroll) listDiv.scrollTo(0, listDivScrollHeight);
-    autoScroll = false;
+    if (scrollOnAdd) {
+      let pos;
+      if (scrollOnAdd === "top") pos = 0;
+      if (scrollOnAdd === "bottom") pos = listDivScrollHeight;
+
+      if (autoScroll) listDiv.scrollTo(0, pos);
+      autoScroll = false;
+      
+    }
   });
+
+  const [send, receive] = crossfade({
+    duration: 400,
+    fallback(node){
+        return scale(node,{start:0.5,duration:400});
+      }
+  })
 
   export let todos = null;
   export let error = null;
   export let isLoading = false;
   export let disableAdding = false;
   export let disabledItems = [];
+  export let scrollOnAdd = undefined;
+
+  $: done = todos ? todos.filter((todo) => todo.completed) : [];
+  $: todo = todos ? todos.filter((todo) => !todo.completed) : [];
 
   let prevTodos = todos;
   let inputText = "";
@@ -74,38 +92,51 @@
         {#if todos.length === 0}
           <p class="state-text">No todos yet</p>
         {:else}
-          <ul>
-            {#each todos as todo, index (todo.id)}
-            {@const {id, completed, title} = todo}
-              <li animate:flip={{duration:300}}>
-                <slot {todo} {index} {handleToggleTodo}>
-                  <div transition:scale|local={{start:0.5, duration:300}} class:completed>
-                    <label>
-                      <input
-                        disabled={disabledItems.includes(id)}
-                        on:input={(event) => {
-                          event.currentTarget.checked = completed;
-                          handleToggleTodo(id, !completed);
-                        }}
-                        type="checkbox"
-                        checked={completed}
-                      />
-                      <slot name="title">{title}</slot>
-                    </label>
-                    <button
-                      disabled={disabledItems.includes(id)}
-                      class="remove-todo-button"
-                      aria-label="Remove Todo: {title}"
-                      on:click={() => handleDeleteTodo(id)}
-                      ><span style:width="10px" style:display="inline-block"
-                        ><FaRegTrashAlt /></span
-                      ></button
-                    >
-                  </div>
-                </slot>
-              </li>
+          <div style:display="flex">
+            {#each [todo, done] as list, index}
+              <h2>{index === 0 ? "Todo" : "Done"}</h2>
+              <div class="list-wrapper">
+                <ul>
+                  {#each list as todo, index (todo.id)}
+                    {@const { id, completed, title } = todo}
+                    <li animate:flip={{ duration: 300 }}>
+                      <slot {todo} {index} {handleToggleTodo}>
+                        <div
+                          in:receive|local={{ key: id}}
+                          out:send|local={{ key: id}}
+                          class:completed
+                        >
+                          <label>
+                            <input
+                              disabled={disabledItems.includes(id)}
+                              on:input={(event) => {
+                                event.currentTarget.checked = completed;
+                                handleToggleTodo(id, !completed);
+                              }}
+                              type="checkbox"
+                              checked={completed}
+                            />
+                            <slot name="title">{title}</slot>
+                          </label>
+                          <button
+                            disabled={disabledItems.includes(id)}
+                            class="remove-todo-button"
+                            aria-label="Remove Todo: {title}"
+                            on:click={() => handleDeleteTodo(id)}
+                            ><span
+                              style:width="10px"
+                              style:display="inline-block"
+                              ><FaRegTrashAlt /></span
+                            ></button
+                          >
+                        </div>
+                      </slot>
+                    </li>
+                  {/each}
+                </ul>
+              </div>
             {/each}
-          </ul>
+          </div>
         {/if}
       </div>
     </div>
@@ -135,55 +166,62 @@
       text-align: center;
     }
     .todo-list {
-      max-height: 150px;
+      max-height: 400px;
       overflow: auto;
-      ul {
-        margin: 0;
+      .list-wrapper {
         padding: 10px;
-        list-style: none;
-        li > div {
-          margin-bottom: 5px;
-          display: flex;
-          align-items: center;
-          background-color: #303030;
-          border-radius: 5px;
-          padding: 10px;
-          position: relative;
-          label {
-            cursor: pointer;
-            font-size: 19;
+        flex: 1;
+        h2 {
+          margin: 0 0 10px;
+        }
+        ul {
+          margin: 0;
+          padding: 0;
+          list-style: none;
+          li > div {
+            margin-bottom: 5px;
             display: flex;
-            color: #fff;
-            align-items: baseline;
-            padding-right: 20px;
-            input[type="checkbox"] {
-              margin: 0 10px 0 0;
+            align-items: center;
+            background-color: #303030;
+            border-radius: 5px;
+            padding: 10px;
+            position: relative;
+            label {
               cursor: pointer;
+              font-size: 19;
+              display: flex;
+              color: #fff;
+              align-items: baseline;
+              padding-right: 20px;
+              input[type="checkbox"] {
+                margin: 0 10px 0 0;
+                cursor: pointer;
+              }
             }
-          }
-          &.completed > label {
-            opacity: 0.5;
-            text-decoration: line-through;
-          }
-          .remove-todo-button {
-            border: none;
-            background: none;
-            padding: 5px;
-            position: absolute;
-            right: 10px;
-            cursor: pointer;
-            display: none;
-            &:disabled {
-              opacity: 0.4;
-              cursor: not-allowed;
+            &.completed > label {
+              opacity: 0.5;
+              text-decoration: line-through;
             }
-            :global(svg) {
-              fill: red;
-            }
-          }
-          &:hover {
             .remove-todo-button {
-              display: block;
+              border: none;
+              background: none;
+              padding: 5px;
+              position: absolute;
+              right: 10px;
+              cursor: pointer;
+              display: none;
+              &:disabled {
+                opacity: 0.4;
+                cursor: not-allowed;
+              }
+              :global(svg) {
+                fill: red;
+              }
+            }
+            &:hover {
+              .remove-todo-button {
+                display: block;
+              }
             }
           }
         }

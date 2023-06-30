@@ -2,8 +2,8 @@
   import TodoList from "./lib/TodoList.svelte";
   import { v4 as uuid } from "uuid";
   import { onMount, tick } from "svelte";
-  import { fade, fly, slide } from "svelte/transition";
-  import { cubicOut } from "svelte/easing";
+  import { fly } from "svelte/transition";
+  import fade from "./lib/transitions/fade";
 
   let todoList;
   let showList = true;
@@ -47,7 +47,7 @@
     }).then(async (response) => {
       if (response.ok) {
         const todo = await response.json();
-        todos = [...todos, { ...todo, id: uuid() }];
+        todos = [{ ...todo, id: uuid() }, ...todos];
         todoList.clearInput();
       } else {
         error = "An error has occurred";
@@ -110,20 +110,14 @@
   Show/Hide List
 </label>
 {#if showList}
-  <div
-    in:slide={{ duration: 700, easing: cubicOut }}
-    on:introstart={() => console.log("intro start")}
-    on:introend={() => console.log("intro end")}
-    on:outrostart={() => console.log("outro start")}
-    on:outroend={() => console.log("outro end")}
-    style:max-width="400px"
-  >
+  <div  style:max-width="800px">
     <TodoList
       {todos}
       {error}
       {isLoading}
       {disabledItems}
       disableAdding={isAdding}
+      scrollOnAdd="top"
       bind:this={todoList}
       on:addtodo={handleAddTodo}
       on:removetodo={handleRemoveTodo}
@@ -131,7 +125,12 @@
     />
   </div>
   {#if todos}
-  <p>Number if todos: {#key todos.length}<span style:display="inline-block" in:fly|local={{y: -10}}>{todos.length}</span>{/key}</p>
+    <p>
+      Number if todos: {#key todos.length}<span
+          style:display="inline-block"
+          in:fly|local={{ y: -10 }}>{todos.length}</span
+        >{/key}
+    </p>
   {/if}
 {/if}
 
