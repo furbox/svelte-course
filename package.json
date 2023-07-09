@@ -15,8 +15,11 @@
     "vite": "^4.3.9"
   },
   "dependencies": {
+    "d3-interpolate": "^3.0.1",
+    "konva": "^9.2.0",
     "svelte-icons": "^2.1.0",
     "svelte-preprocess": "^5.0.4",
+    "tippy.js": "^6.3.7",
     "uuid": "^9.0.0"
   }
 }
